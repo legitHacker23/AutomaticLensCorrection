@@ -14,7 +14,7 @@ from torchvision.transforms import functional as TF
 
 # ── layout detection ─────────────────────────────────────────────────
 
-LayoutKind = Literal["A", "B"]
+LayoutKind = Literal["A", "B", "C"]
 
 ORIGINAL_NAMES = ("original", "distorted", "input")
 GENERATED_NAMES = ("generated", "corrected", "gt", "target")
@@ -29,12 +29,14 @@ def _find_subdir(root: Path, candidates: Tuple[str, ...]) -> Optional[str]:
 
 
 def detect_layout(train_dir: str | Path) -> Tuple[LayoutKind, str, str]:
-    """Auto-detect whether the training data follows layout A or B.
+    """Auto-detect whether the training data follows layout A, B, or C.
 
     Layout A (per-ID folders):
         train_dir/<id>/original.jpg  +  train_dir/<id>/generated.jpg
     Layout B (split folders):
         train_dir/original/<id>.jpg  +  train_dir/generated/<id>.jpg
+    Layout C (flat paired files):
+        train_dir/<uuid>_original.jpg  +  train_dir/<uuid>_generated.jpg
 
     Returns (layout_kind, original_key, generated_key).
     """
@@ -42,11 +44,13 @@ def detect_layout(train_dir: str | Path) -> Tuple[LayoutKind, str, str]:
     if not root.is_dir():
         raise FileNotFoundError(f"Training directory not found: {root}")
 
+    # Layout B: subdirectories named original/generated
     orig_key = _find_subdir(root, ORIGINAL_NAMES)
     gen_key = _find_subdir(root, GENERATED_NAMES)
     if orig_key is not None and gen_key is not None:
         return "B", orig_key, gen_key
 
+    # Layout A: per-ID subdirectories with original.*/generated.* files
     first_child = next((p for p in sorted(root.iterdir()) if p.is_dir()), None)
     if first_child is not None:
         for oname in ORIGINAL_NAMES:
@@ -60,10 +64,23 @@ def detect_layout(train_dir: str | Path) -> Tuple[LayoutKind, str, str]:
                 if gname is not None:
                     return "A", oname, gname
 
+    # Layout C: flat files ending with _original.<ext> and _generated.<ext>
+    has_orig = any(
+        f.is_file() and _is_image(f) and f.stem.endswith("_original")
+        for f in root.iterdir()
+    )
+    has_gen = any(
+        f.is_file() and _is_image(f) and f.stem.endswith("_generated")
+        for f in root.iterdir()
+    )
+    if has_orig and has_gen:
+        return "C", "_original", "_generated"
+
     raise RuntimeError(
         f"Cannot detect data layout in {root}. "
-        "Expected layout A (<id>/original.* + <id>/generated.*) "
-        "or layout B (original/<id>.* + generated/<id>.*)."
+        "Expected layout A (<id>/original.* + <id>/generated.*), "
+        "layout B (original/<id>.* + generated/<id>.*), or "
+        "layout C (<uuid>_original.jpg + <uuid>_generated.jpg)."
     )
 
 
@@ -85,7 +102,15 @@ def discover_pairs(
 
     pairs: List[Tuple[Path, Path]] = []
 
-    if layout == "B":
+    if layout == "C":
+        for p in sorted(root.iterdir()):
+            if not (p.is_file() and _is_image(p) and p.stem.endswith("_original")):
+                continue
+            gen_name = p.name.replace("_original", "_generated", 1)
+            g = root / gen_name
+            if g.exists():
+                pairs.append((p, g))
+    elif layout == "B":
         orig_dir = root / orig_key
         gen_dir = root / gen_key
         for p in sorted(orig_dir.iterdir()):
@@ -151,6 +176,7 @@ class LensFixTrainDataset(Dataset):
             self.pairs = pairs
         else:
             self.pairs, _ = discover_pairs(train_dir)
+        print(f"[LensFixTrainDataset] Loaded {len(self.pairs)} pairs from {train_dir}")
         self.image_size = image_size
         self.photo_aug = PhotoAugment() if augment else None
 
