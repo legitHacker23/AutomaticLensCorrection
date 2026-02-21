@@ -75,6 +75,12 @@ def _load_checkpoint(path: Path, model, optimizer=None, scaler=None):
     return ckpt.get("epoch", 0), ckpt.get("best_val", float("inf"))
 
 
+def _load_weights_only(path: Path, model):
+    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    model.load_state_dict(ckpt["model"])
+    return ckpt
+
+
 # ── single epoch ─────────────────────────────────────────────────────
 
 def _run_epoch(
@@ -121,6 +127,7 @@ def train_stage(
     pairs: list,
     device: torch.device,
     resume_path: str | None = None,
+    weights_only: bool = False,
 ):
     scfg = cfg[stage_key]
     image_size = scfg["image_size"]
@@ -157,12 +164,18 @@ def train_stage(
     best_val = float("inf")
 
     if resume_path and Path(resume_path).is_file():
-        print(f"Resuming from {resume_path}")
-        start_epoch, best_val = _load_checkpoint(
-            Path(resume_path), model, optimizer, scaler
-        )
-        start_epoch += 1
-        print(f"  → continuing at epoch {start_epoch}, best_val={best_val:.5f}")
+        if weights_only:
+            print(f"Loading weights (not optimizer/epoch) from {resume_path}")
+            _load_weights_only(Path(resume_path), model)
+            start_epoch = 0
+            best_val = float("inf")
+        else:
+            print(f"Resuming from {resume_path}")
+            start_epoch, best_val = _load_checkpoint(
+                Path(resume_path), model, optimizer, scaler
+            )
+            start_epoch += 1
+            print(f"  → continuing at epoch {start_epoch}, best_val={best_val:.5f}")
 
     for epoch in range(start_epoch, epochs):
         t0 = time.time()
@@ -241,7 +254,10 @@ def main():
             resume = str(Path(cfg["checkpoint"]["dir"]) / "best.pt")
         elif resume is None:
             resume = str(Path(cfg["checkpoint"]["dir"]) / "best.pt")
-        train_stage(cfg, "finetune", model, pairs, device, resume_path=resume)
+        train_stage(
+            cfg, "finetune", model, pairs, device,
+            resume_path=resume, weights_only=True,
+        )
 
 
 if __name__ == "__main__":
