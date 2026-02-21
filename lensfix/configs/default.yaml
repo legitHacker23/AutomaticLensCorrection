@@ -1,0 +1,49 @@
+# ── data ──────────────────────────────────────────────────────────────
+data:
+  train_dir: "data/train"
+  test_dir: "data/test"
+  val_ratio: 0.05
+  num_workers: 4
+
+# ── training stage 1 ─────────────────────────────────────────────────
+train:
+  image_size: 256
+  batch_size: 8
+  epochs: 10
+  lr: 1.0e-4
+  amp: true
+
+# ── training stage 2 (finetune) ─────────────────────────────────────
+finetune:
+  image_size: 384
+  batch_size: 4
+  epochs: 5
+  lr: 5.0e-5
+  amp: true
+
+# ── loss weights ─────────────────────────────────────────────────────
+loss:
+  w_l1: 1.0
+  w_grad: 1.0
+  w_ssim: 0.2
+  w_tv: 0.1
+  w_bend: 0.05
+
+# ── model ────────────────────────────────────────────────────────────
+model:
+  backbone: "resnet34"
+  flow_channels: 64
+  grid_sample_mode: "bicubic"
+  grid_sample_padding: "border"
+  align_corners: true
+
+# ── inference ────────────────────────────────────────────────────────
+infer:
+  checkpoint: "checkpoints/best.pt"
+  output_dir: "output"
+  full_res: true
+
+# ── checkpointing ────────────────────────────────────────────────────
+checkpoint:
+  dir: "checkpoints"
+  save_every: 1
