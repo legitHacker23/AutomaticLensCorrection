@@ -156,7 +156,7 @@ def train_stage(
         w_tv=lcfg["w_tv"], w_bend=lcfg["w_bend"],
     ).to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
     amp_device = "cuda" if device.type == "cuda" else "cpu"
     scaler = GradScaler(amp_device, enabled=(use_amp and device.type == "cuda"))
 
@@ -177,6 +177,10 @@ def train_stage(
             start_epoch += 1
             print(f"  → continuing at epoch {start_epoch}, best_val={best_val:.5f}")
 
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=epochs - start_epoch, eta_min=lr * 0.01,
+    )
+
     for epoch in range(start_epoch, epochs):
         t0 = time.time()
 
@@ -191,10 +195,12 @@ def train_stage(
                 use_amp=use_amp, training=False,
             )
 
+        scheduler.step()
         elapsed = time.time() - t0
+        cur_lr = optimizer.param_groups[0]["lr"]
         t_parts = "  ".join(f"{k}={v:.4f}" for k, v in sorted(train_metrics.items()))
         v_parts = "  ".join(f"{k}={v:.4f}" for k, v in sorted(val_metrics.items()))
-        print(f"[{stage_key} ep {epoch+1}/{epochs}  {elapsed:.0f}s]  "
+        print(f"[{stage_key} ep {epoch+1}/{epochs}  {elapsed:.0f}s  lr={cur_lr:.2e}]  "
               f"train: {t_parts}")
         print(f"{'':>{'30'}}  val:   {v_parts}")
 
