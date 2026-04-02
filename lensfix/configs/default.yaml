@@ -3,23 +3,25 @@ data:
   train_dir: "data/train"
   test_dir: "data/test"
   val_ratio: 0.05
-  num_workers: 4
+  num_workers: 8
 
 # ── training stage 1 ─────────────────────────────────────────────────
 train:
   image_size: 256
-  batch_size: 8
-  epochs: 10
-  lr: 1.0e-4
+  batch_size: 16
+  epochs: 7
+  lr: 2.0e-4
   amp: true
+  freeze_encoder_epochs: 3
 
 # ── training stage 2 (finetune) ─────────────────────────────────────
 finetune:
   image_size: 384
-  batch_size: 4
-  epochs: 5
+  batch_size: 8
+  epochs: 3
   lr: 5.0e-5
   amp: true
+  freeze_encoder_epochs: 0
 
 # ── loss weights ─────────────────────────────────────────────────────
 loss:
