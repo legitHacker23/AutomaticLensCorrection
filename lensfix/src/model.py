@@ -52,10 +52,10 @@ def radial_tangential_grid(
 def _build_encoder(backbone: str = "resnet34") -> tuple[nn.Module, int]:
     """Return (feature_extractor, num_features) from a torchvision backbone."""
     if backbone == "resnet18":
-        net = models.resnet18(weights=None)
+        net = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         feat_dim = 512
     elif backbone == "resnet34":
-        net = models.resnet34(weights=None)
+        net = models.resnet34(weights=models.ResNet34_Weights.DEFAULT)
         feat_dim = 512
     else:
         raise ValueError(f"Unsupported backbone: {backbone}")
