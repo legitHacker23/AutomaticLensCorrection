@@ -184,7 +184,10 @@ class LensFixTrainDataset(Dataset):
 
     def _load_and_resize(self, path: Path) -> Image.Image:
         img = Image.open(path).convert("RGB")
-        return img.resize((self.image_size, self.image_size), Image.BILINEAR)
+        w, h = img.size
+        scale = self.image_size / min(w, h)
+        img = img.resize((round(w * scale), round(h * scale)), Image.BILINEAR)
+        return TF.center_crop(img, self.image_size)
 
     # ── interface ─────────────────────────────────────────────────────
 
