@@ -10,7 +10,7 @@ train:
   image_size: 256
   batch_size: 16
   epochs: 7
-  lr: 1.0e-4
+  lr: 5.0e-5
   amp: true
 
 # ── training stage 2 (finetune) ─────────────────────────────────────
