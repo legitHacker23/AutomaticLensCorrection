@@ -131,6 +131,18 @@ class HybridWarpNet(nn.Module):
 
         self.flow_decoder = FlowDecoder(feat_dim, flow_channels)
 
+        self._init_heads()
+
+    def _init_heads(self):
+        """Start near identity warp: zero final-layer weights so model begins at no-op."""
+        nn.init.zeros_(self.param_head[-1].weight)
+        nn.init.zeros_(self.param_head[-1].bias)
+        nn.init.zeros_(self.alpha_head[-2].weight)
+        nn.init.zeros_(self.alpha_head[-2].bias)
+        last_conv = self.flow_decoder.net[-1]
+        nn.init.zeros_(last_conv.weight)
+        nn.init.zeros_(last_conv.bias)
+
     # ── warp utilities ───────────────────────────────────────────────
 
     def _sample(self, img: torch.Tensor, grid: torch.Tensor) -> torch.Tensor:
