@@ -181,20 +181,7 @@ def train_stage(
         optimizer, T_max=epochs - start_epoch, eta_min=lr * 0.01,
     )
 
-    freeze_epochs = scfg.get("freeze_encoder_epochs", 0)
-
     for epoch in range(start_epoch, epochs):
-        # Freeze/unfreeze encoder based on epoch
-        if epoch < freeze_epochs:
-            for p in model.encoder.parameters():
-                p.requires_grad = False
-            if epoch == 0:
-                print(f"  Encoder frozen for first {freeze_epochs} epochs")
-        elif epoch == freeze_epochs and freeze_epochs > 0:
-            for p in model.encoder.parameters():
-                p.requires_grad = True
-            print(f"  Encoder unfrozen at epoch {epoch + 1}")
-
         t0 = time.time()
 
         train_metrics = _run_epoch(

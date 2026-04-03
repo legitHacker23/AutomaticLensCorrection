@@ -98,7 +98,7 @@ class HybridWarpNet(nn.Module):
     """
 
     PARAM_COUNT = 6  # k1, k2, cx, cy, p1, p2
-    FLOW_SCALE = 0.02  # max displacement magnitude in normalised coords
+    FLOW_SCALE = 0.05  # max displacement magnitude in normalised coords
 
     def __init__(
         self,
@@ -130,17 +130,6 @@ class HybridWarpNet(nn.Module):
         )
 
         self.flow_decoder = FlowDecoder(feat_dim, flow_channels)
-
-        self._init_heads()
-
-    def _init_heads(self):
-        """Start near identity warp: zero params, zero flow, low alpha."""
-        for head in (self.param_head, self.alpha_head):
-            nn.init.zeros_(head[-1 if isinstance(head[-1], nn.Linear) else -2].weight)
-            nn.init.zeros_(head[-1 if isinstance(head[-1], nn.Linear) else -2].bias)
-        last_conv = self.flow_decoder.net[-1]
-        nn.init.zeros_(last_conv.weight)
-        nn.init.zeros_(last_conv.bias)
 
     # ── warp utilities ───────────────────────────────────────────────
 
@@ -174,7 +163,7 @@ class HybridWarpNet(nn.Module):
 
         # ── coarse parametric warp ───────────────────────────────────
         params = self.param_head(pooled)                # (B, 6)
-        params = torch.tanh(params) * 0.15              # bound to [-0.15, 0.15]
+        params = torch.tanh(params) * 0.3               # bound to [-0.3, 0.3]
         params = params * alpha                          # alpha-scaled  (B, 6)
 
         k1, k2, cx, cy, p1, p2 = [p.view(B, 1, 1, 1) for p in params.unbind(1)]
